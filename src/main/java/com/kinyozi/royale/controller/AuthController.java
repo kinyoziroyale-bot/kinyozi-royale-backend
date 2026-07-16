@@ -4,6 +4,7 @@ import com.kinyozi.royale.dto.AuthDtos.*;
 import com.kinyozi.royale.security.CookieAuthSupport;
 import com.kinyozi.royale.service.AuthService;
 import com.kinyozi.royale.service.AuthService.Login;
+import com.kinyozi.royale.service.SupabaseEmailVerificationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -17,18 +18,29 @@ public class AuthController {
     /** Name of the HttpOnly cookie holding the refresh token. */
     public static final String REFRESH_COOKIE = "kr_refresh";
 
+    /** Header carrying a Supabase Auth access token that proves the caller
+     *  verified their email through the configured Supabase project. */
+    public static final String SUPABASE_TOKEN_HEADER = "X-Supabase-Access-Token";
+
     private final AuthService auth;
     private final CookieAuthSupport cookies;
+    private final SupabaseEmailVerificationService emailVerifier;
 
-    public AuthController(AuthService a, CookieAuthSupport c) {
+    public AuthController(AuthService a, CookieAuthSupport c, SupabaseEmailVerificationService v) {
         this.auth = a;
         this.cookies = c;
+        this.emailVerifier = v;
     }
 
     @PostMapping("/register")
     public AuthResponse register(@Valid @RequestBody RegisterRequest r,
+                                 @RequestHeader(value = SUPABASE_TOKEN_HEADER, required = false) String supabaseToken,
                                  HttpServletRequest req,
                                  HttpServletResponse res) {
+        // Gate registration on Supabase email verification when enabled.
+        // If the feature is disabled in config this is a no-op.
+        emailVerifier.requireVerifiedEmail(supabaseToken, r.owner().email());
+
         Login l = auth.register(r, req);
         cookies.setRefreshCookie(res, l.refreshToken());
         return l.body();
