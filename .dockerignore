@@ -5,12 +5,9 @@ out/
 .idea/
 .vscode/
 *.iml
-.git/
-.gitignore
-node_modules/
+.git
+node_modules
 .env
-.env.*
-*.log
 Dockerfile
 .dockerignore
 README.md
