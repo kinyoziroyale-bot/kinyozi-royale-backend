@@ -11,8 +11,13 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@CrossOrigin(
+        origins = "https://kinyozi-royale.vercel.app",
+        allowedHeaders = {"Content-Type", "Authorization", "X-Supabase-Access-Token"},
+        allowCredentials = "true"
+)
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 public class AuthController {
 
     /** Name of the HttpOnly cookie holding the refresh token. */
