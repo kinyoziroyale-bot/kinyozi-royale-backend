@@ -20,12 +20,6 @@ import org.springframework.security.web.header.writers.StaticHeadersWriter;
  * Tenant SecurityFilterChain. CORS is delegated to the shared
  * {@code corsConfigurationSource} bean. Method-level authorization
  * ({@code @PreAuthorize}) is enabled.
- *
- * V5:
- * - Password change endpoint (/auth/password/change) explicitly requires
- * authentication.
- * - /auth/refresh and /auth/logout are public (they authenticate via the
- * HttpOnly refresh cookie, not the Authorization header).
  */
 @Configuration
 @EnableMethodSecurity
@@ -54,18 +48,19 @@ public class SecurityConfig {
                     h.httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000));
                     h.permissionsPolicy(pp -> pp.policy("camera=(), microphone=(), geolocation=(), payment=()"));
 
-                    // These will now properly reference 'h' instead of the permissions configurer
                     h.addHeaderWriter(new StaticHeadersWriter("Cross-Origin-Opener-Policy", "same-origin"));
                     h.addHeaderWriter(new StaticHeadersWriter("Cross-Origin-Resource-Policy", "same-site"));
                 }).authorizeHttpRequests(a -> a
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Public auth endpoints — refresh/logout authenticate via the HttpOnly cookie.
+                        // Public auth endpoints — updated to /api/auth/
                         .requestMatchers(
-                                "/auth/register", "/auth/login",
-                                "/auth/refresh",  "/auth/logout",
+                                "/api/auth/register", "/api/auth/login",
+                                "/api/auth/refresh",  "/api/auth/logout",
+                                "/auth/register",     "/auth/login",
+                                "/auth/refresh",      "/auth/logout",
                                 "/health").permitAll()
                         // Password change MUST be authenticated.
-                        .requestMatchers("/auth/password/change").authenticated()
+                        .requestMatchers("/api/auth/password/change", "/auth/password/change").authenticated()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
