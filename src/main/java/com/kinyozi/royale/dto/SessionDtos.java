@@ -1,6 +1,7 @@
 package com.kinyozi.royale.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -14,15 +15,23 @@ public class SessionDtos {
 
     public static class AddLineRequest {
         @NotNull public UUID serviceId;
-        @NotNull public UUID workerId;
-        /** Optional override; if null we snapshot the service's current price. */
+        /** Nullable — required only when tenant.workerAssignmentMode = BEFORE_CHECKOUT. */
+        public UUID workerId;
+        /** Agreed price for this transaction. If null, backend snapshots the current service price (legacy behaviour). */
+        @PositiveOrZero
         public BigDecimal priceCharged;
     }
 
     public static class UpdateLineRequest {
         @NotNull public UUID serviceId;
-        @NotNull public UUID workerId;
+        public UUID workerId;
+        @PositiveOrZero
         public BigDecimal priceCharged;
+    }
+
+    public static class AssignWorkerRequest {
+        /** Nullable — pass null to un-assign. */
+        public UUID workerId;
     }
 
     public static class LineResponse {
@@ -42,6 +51,7 @@ public class SessionDtos {
         public Instant openedAt;
         public Instant closedAt;
         public BigDecimal total;
+        public Boolean hasPendingWorker;
         public List<LineResponse> lines;
     }
 }

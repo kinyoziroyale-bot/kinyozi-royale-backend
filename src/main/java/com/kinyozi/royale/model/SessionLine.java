@@ -21,7 +21,7 @@ public class SessionLine {
     @Column(name = "service_id", nullable = false)
     private UUID serviceId;
 
-    @Column(name = "worker_id", nullable = false)
+    @Column(name = "worker_id")
     private UUID workerId;
 
     @Column(name = "price_charged", nullable = false, precision = 12, scale = 2)

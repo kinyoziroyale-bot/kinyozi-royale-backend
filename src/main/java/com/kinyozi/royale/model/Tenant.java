@@ -38,4 +38,12 @@ public class Tenant {
     @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
+
+    /** How this tenant assigns workers to POS line items. */
+    public enum WorkerAssignmentMode { BEFORE_CHECKOUT, AFTER_SERVICE }
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "worker_assignment_mode", nullable = false, length = 32)
+    @Builder.Default
+    private WorkerAssignmentMode workerAssignmentMode = WorkerAssignmentMode.BEFORE_CHECKOUT;
 }

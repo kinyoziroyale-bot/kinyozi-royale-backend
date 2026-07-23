@@ -41,6 +41,9 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 public class EarningsService {
+    private static final ThreadLocal<java.math.BigDecimal> TL_UNASSIGNED_SALES = new ThreadLocal<>();
+    private static final ThreadLocal<Integer> TL_UNASSIGNED_SERVICES = new ThreadLocal<>();
+    private static final ThreadLocal<Integer> TL_UNASSIGNED_SESSIONS = new ThreadLocal<>();
 
     private final SessionRepository sessions;
     private final WorkerRepository workers;
@@ -131,6 +134,13 @@ public class EarningsService {
             s.totalSalary     = s.totalSalary.add(nz(w.basicSalary));
             s.servicesCount  += w.services;
         }
+        // Include unassigned-worker lines (revenue only — no commission/salary attributed).
+        java.math.BigDecimal unassigned = TL_UNASSIGNED_SALES.get();
+        Integer unassignedSvc = TL_UNASSIGNED_SERVICES.get();
+        Integer unassignedSess = TL_UNASSIGNED_SESSIONS.get();
+        if (unassigned != null) s.totalSales = s.totalSales.add(unassigned);
+        if (unassignedSvc != null) s.servicesCount += unassignedSvc;
+        if (unassignedSess != null) s.sessionsCount = Math.max(s.sessionsCount, unassignedSess);
         s.totalPayout          = s.totalCommission.add(s.totalSalary);
         s.businessGrossProfit  = s.totalSales.subtract(s.totalCommission);
         s.businessNetProfit    = s.totalSales.subtract(s.totalPayout);
@@ -148,6 +158,9 @@ public class EarningsService {
      */
     private List<WorkerEarnings> aggregate(Instant from, Instant to, long periodDays) {
         UUID tenant = TenantContext.current();
+        TL_UNASSIGNED_SALES.set(java.math.BigDecimal.ZERO);
+        TL_UNASSIGNED_SERVICES.set(0);
+        TL_UNASSIGNED_SESSIONS.set(0);
 
         // Preload workers, services, and legacy commission rows.
         Map<UUID, Worker> workerById = workers.findByTenantId(tenant).stream()
@@ -170,8 +183,17 @@ public class EarningsService {
         var completed = sessions.findByTenantIdAndStatusAndClosedAtBetween(
                 tenant, CustomerSession.Status.COMPLETED, from, to);
 
+        java.math.BigDecimal unassignedSales = java.math.BigDecimal.ZERO;
+        int unassignedServices = 0;
+        java.util.Set<java.util.UUID> unassignedSessions = new java.util.HashSet<>();
         for (CustomerSession s : completed) {
             for (SessionLine l : s.getLines()) {
+                if (l.getWorkerId() == null) {
+                    unassignedSales = unassignedSales.add(nz(l.getPriceCharged()));
+                    unassignedServices += 1;
+                    unassignedSessions.add(s.getId());
+                    continue;
+                }
                 WorkerEarnings e = map.computeIfAbsent(l.getWorkerId(), id -> newRow(id, workerById));
                 e.services += 1;
                 distinctSessionsPerWorker
@@ -192,6 +214,10 @@ public class EarningsService {
                 }
             }
         }
+
+        TL_UNASSIGNED_SALES.set(unassignedSales);
+        TL_UNASSIGNED_SERVICES.set(unassignedServices);
+        TL_UNASSIGNED_SESSIONS.set(unassignedSessions.size());
 
         // Finalise per-worker rows: pro-rate salary, compute totals + top service.
         for (WorkerEarnings e : map.values()) {
