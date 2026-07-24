@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
         allowCredentials = "true"
 )
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 public class AuthController {
 
     /** Name of the HttpOnly cookie holding the refresh token. */
